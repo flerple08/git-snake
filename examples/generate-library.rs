@@ -1,16 +1,16 @@
 use std::{env, error::Error, fs, path::Path, process::ExitCode};
 
 use chrono::{Datelike, Days, NaiveDate};
-use git_koi::coat::KoiBody;
-use git_koi::history::{AccountSnapshot, ContributionWeek, LanguageColor};
-use git_koi::koi::{
-    ADULT_CONTRIBUTIONS, KoiDevelopment, MAX_GROWTH_CONTRIBUTIONS, RecentStreak,
-    YOUNG_SHAPE_CONTRIBUTIONS, derive_koi_development,
+use git_snake::coat::SnakeMorph;
+use git_snake::history::{AccountSnapshot, ContributionWeek, LanguageColor};
+use git_snake::snake::{
+    ADULT_CONTRIBUTIONS, SnakeDevelopment, MAX_GROWTH_CONTRIBUTIONS, RecentStreak,
+    YOUNG_SHAPE_CONTRIBUTIONS, derive_snake_development,
 };
-use git_koi::output::{
+use git_snake::output::{
     STATIC_EXPORT_SCALE, STATIC_HEIGHT_PIXELS, STATIC_WIDTH_PIXELS, encode_png, encode_svg,
 };
-use git_koi::render::{FRAME_HEIGHT_PIXELS, FRAME_WIDTH_PIXELS, KoiFrame, render_koi};
+use git_snake::render::{FRAME_HEIGHT_PIXELS, FRAME_WIDTH_PIXELS, SnakeFrame, render_snake};
 
 /// Language mixes with GitHub's colors and their shares of the account's projects.
 type LanguageMix = &'static [(&'static str, &'static str, f64)];
@@ -39,20 +39,20 @@ const LANGUAGE_SAMPLES: [(&str, LanguageMix); 4] = [
     ),
 ];
 /// One language for each pigment, so every pigment shows on every body.
-const BODY_MIX: LanguageMix = &[
+const MORPH_MIX: LanguageMix = &[
     ("C++", "#f34b7d", 0.2),
     ("C", "#555555", 0.2),
     ("JavaScript", "#f1e05a", 0.2),
     ("Rust", "#dea584", 0.2),
     ("Python", "#3572a5", 0.2),
 ];
-const BODY_SAMPLES: [(&str, KoiBody); 6] = [
-    ("white", KoiBody::White),
-    ("black", KoiBody::Black),
-    ("asagi", KoiBody::Asagi),
-    ("tea", KoiBody::Tea),
-    ("gold", KoiBody::Gold),
-    ("platinum", KoiBody::Platinum),
+const MORPH_SAMPLES: [(&str, SnakeMorph); 6] = [
+    ("normal", SnakeMorph::Normal),
+    ("pastel", SnakeMorph::Pastel),
+    ("banana", SnakeMorph::Banana),
+    ("albino", SnakeMorph::Albino),
+    ("axanthic", SnakeMorph::Axanthic),
+    ("cinnamon", SnakeMorph::Cinnamon),
 ];
 /// A recent streak sample: still running, or ended some days before the observation.
 #[derive(Clone, Copy)]
@@ -125,63 +125,63 @@ fn main() -> ExitCode {
 fn generate_library(output_directory: &Path) -> Result<(), Box<dyn Error>> {
     let account_snapshot: AccountSnapshot =
         serde_json::from_str(include_str!("../tests/fixtures/account-with-history.json"))?;
-    let mut koi_development = derive_koi_development(&account_snapshot)?;
-    // Growth samples show normal colors and no streak fins.
-    set_streaks(&mut koi_development, 4, Some(ended_long_ago(4)));
-    let mut index_markdown = build_index_header(koi_development.identity_seed);
+    let mut snake_development = derive_snake_development(&account_snapshot)?;
+    // Growth samples show normal colors and no streak stripe.
+    set_streaks(&mut snake_development, 4, Some(ended_long_ago(4)));
+    let mut index_markdown = build_index_header(snake_development.identity_seed);
     fs::create_dir_all(output_directory)?;
     let mut mix_frames = Vec::new();
     for (mix_name, language_mix) in LANGUAGE_SAMPLES {
-        let mix_description = apply_language_mix(&mut koi_development, language_mix)?;
+        let mix_description = apply_language_mix(&mut snake_development, language_mix)?;
         index_markdown.push_str(&format!(
             "## {}\n\n{mix_description}.\n\n",
             capitalize(mix_name)
         ));
         mix_frames.extend(render_growth_samples(
             output_directory,
-            &mut koi_development,
-            KoiBody::default(),
+            &mut snake_development,
+            SnakeMorph::default(),
             mix_name,
             &mut index_markdown,
         )?);
     }
     write_overviews(output_directory, "overview", &mix_frames)?;
-    let body_mix_description = apply_language_mix(&mut koi_development, BODY_MIX)?;
-    let mut body_frames = Vec::new();
-    for (body_name, koi_body) in BODY_SAMPLES {
+    let morph_mix_description = apply_language_mix(&mut snake_development, MORPH_MIX)?;
+    let mut morph_frames = Vec::new();
+    for (morph_name, snake_morph) in MORPH_SAMPLES {
         index_markdown.push_str(&format!(
-            "## {} Body\n\n{body_mix_description}.\n\n",
-            capitalize(body_name)
+            "## {} Morph\n\n{morph_mix_description}.\n\n",
+            capitalize(morph_name)
         ));
-        body_frames.extend(render_growth_samples(
+        morph_frames.extend(render_growth_samples(
             output_directory,
-            &mut koi_development,
-            koi_body,
-            &format!("body-{body_name}"),
+            &mut snake_development,
+            snake_morph,
+            &format!("morph-{morph_name}"),
             &mut index_markdown,
         )?);
     }
-    write_overviews(output_directory, "bodies", &body_frames)?;
+    write_overviews(output_directory, "morphs", &morph_frames)?;
     let mut marking_frames = Vec::new();
-    koi_development.total_contributions = ADULT_CONTRIBUTIONS;
-    let marking_mix_description = apply_language_mix(&mut koi_development, LANGUAGE_SAMPLES[3].1)?;
+    snake_development.total_contributions = ADULT_CONTRIBUTIONS;
+    let marking_mix_description = apply_language_mix(&mut snake_development, LANGUAGE_SAMPLES[3].1)?;
     index_markdown.push_str(&format!(
         "## Streak Markings\n\n{marking_mix_description}, at {ADULT_CONTRIBUTIONS} contributions.\n\n"
     ));
     for (sample_name, longest_week_count, recent_sample) in MARKING_SAMPLES {
-        set_streaks(&mut koi_development, longest_week_count, recent_sample);
+        set_streaks(&mut snake_development, longest_week_count, recent_sample);
         marking_frames.push(render_sample(
             output_directory,
-            &koi_development,
-            KoiBody::default(),
+            &snake_development,
+            SnakeMorph::default(),
             &format!("marks-{sample_name}"),
             &capitalize(&sample_name.replace('-', " ")),
             &mut index_markdown,
         )?);
     }
-    apply_language_mix(&mut koi_development, BODY_MIX)?;
+    apply_language_mix(&mut snake_development, MORPH_MIX)?;
     index_markdown.push_str(&format!(
-        "## Bodies With and Without Marks\n\n{body_mix_description}, at \
+        "## Morphs With and Without Marks\n\n{morph_mix_description}, at \
         {ADULT_CONTRIBUTIONS} contributions. Without marks, no streak has happened yet; \
         with every mark, a 13-week streak is running and the longest is 208 weeks.\n\n"
     ));
@@ -189,14 +189,14 @@ fn generate_library(output_directory: &Path) -> Result<(), Box<dyn Error>> {
         ("unmarked", 0, None),
         ("marked", 208, Some(RecentSample::Current { weeks: 13 })),
     ] {
-        set_streaks(&mut koi_development, longest_week_count, recent_sample);
-        for (body_name, koi_body) in BODY_SAMPLES {
+        set_streaks(&mut snake_development, longest_week_count, recent_sample);
+        for (morph_name, snake_morph) in MORPH_SAMPLES {
             marking_frames.push(render_sample(
                 output_directory,
-                &koi_development,
-                koi_body,
-                &format!("marks-{mark_name}-{body_name}"),
-                &format!("{} Body, {}", capitalize(body_name), capitalize(mark_name)),
+                &snake_development,
+                snake_morph,
+                &format!("marks-{mark_name}-{morph_name}"),
+                &format!("{} Morph, {}", capitalize(morph_name), capitalize(mark_name)),
                 &mut index_markdown,
             )?);
         }
@@ -212,17 +212,17 @@ fn generate_library(output_directory: &Path) -> Result<(), Box<dyn Error>> {
 
 /// Replace the development's languages with a sample mix and describe it for the index.
 fn apply_language_mix(
-    koi_development: &mut KoiDevelopment,
+    snake_development: &mut SnakeDevelopment,
     language_mix: LanguageMix,
 ) -> Result<String, Box<dyn Error>> {
-    koi_development.language_shares.clear();
-    koi_development.language_colors.clear();
+    snake_development.language_shares.clear();
+    snake_development.language_colors.clear();
     let mut mix_description = Vec::new();
     for &(language_name, color_text, language_share) in language_mix {
-        koi_development
+        snake_development
             .language_shares
             .insert(language_name.to_owned(), language_share);
-        koi_development.language_colors.insert(
+        snake_development.language_colors.insert(
             language_name.to_owned(),
             Some(LanguageColor::try_from(color_text)?),
         );
@@ -236,24 +236,24 @@ fn apply_language_mix(
 
 /// Replace the development's streaks with a sample longest and recent streak.
 fn set_streaks(
-    koi_development: &mut KoiDevelopment,
+    snake_development: &mut SnakeDevelopment,
     longest_week_count: usize,
     recent_sample: Option<RecentSample>,
 ) {
-    koi_development.streaks.longest = build_weeks(longest_week_count);
-    koi_development.streaks.recent = recent_sample.map(|recent_sample| match recent_sample {
+    snake_development.streaks.longest = build_weeks(longest_week_count);
+    snake_development.streaks.recent = recent_sample.map(|recent_sample| match recent_sample {
         RecentSample::Current { weeks } => RecentStreak::Current(build_weeks(weeks)),
         RecentSample::Ended {
             weeks,
             days_since_end,
         } => RecentStreak::Ended {
             weeks: build_weeks(weeks),
-            ended_on: koi_development.observed_on - Days::new(days_since_end),
+            ended_on: snake_development.observed_on - Days::new(days_since_end),
         },
     });
 }
 
-/// A 13-week streak that ended some days ago, so its fins are fading.
+/// A 13-week streak that ended some days ago, so its stripe is fading.
 const fn ended_long_streak(days_since_end: u64) -> RecentSample {
     RecentSample::Ended {
         weeks: 13,
@@ -261,7 +261,7 @@ const fn ended_long_streak(days_since_end: u64) -> RecentSample {
     }
 }
 
-/// A streak that ended long enough ago that its fins have faded.
+/// A streak that ended long enough ago that its stripe has faded.
 const fn ended_long_ago(weeks: usize) -> RecentSample {
     RecentSample::Ended {
         weeks,
@@ -284,18 +284,18 @@ fn build_weeks(week_count: usize) -> Vec<ContributionWeek> {
 /// Render and write one sample per growth total, and list them in the index.
 fn render_growth_samples(
     output_directory: &Path,
-    koi_development: &mut KoiDevelopment,
-    koi_body: KoiBody,
+    snake_development: &mut SnakeDevelopment,
+    snake_morph: SnakeMorph,
     sample_name: &str,
     index_markdown: &mut String,
-) -> Result<Vec<KoiFrame>, Box<dyn Error>> {
+) -> Result<Vec<SnakeFrame>, Box<dyn Error>> {
     let mut rendered_frames = Vec::new();
     for contribution_total in GROWTH_SAMPLES {
-        koi_development.total_contributions = contribution_total;
+        snake_development.total_contributions = contribution_total;
         rendered_frames.push(render_sample(
             output_directory,
-            koi_development,
-            koi_body,
+            snake_development,
+            snake_morph,
             &format!("{sample_name}-{contribution_total}"),
             &format!("{contribution_total} Contributions"),
             index_markdown,
@@ -307,31 +307,31 @@ fn render_growth_samples(
 /// Render and write one PNG/SVG pair, and list it in the index under a heading.
 fn render_sample(
     output_directory: &Path,
-    koi_development: &KoiDevelopment,
-    koi_body: KoiBody,
+    snake_development: &SnakeDevelopment,
+    snake_morph: SnakeMorph,
     file_stem: &str,
     heading: &str,
     index_markdown: &mut String,
-) -> Result<KoiFrame, Box<dyn Error>> {
-    let koi_frame = render_koi(koi_development, koi_body);
+) -> Result<SnakeFrame, Box<dyn Error>> {
+    let snake_frame = render_snake(snake_development, snake_morph);
     let file_name = format!("{file_stem}.png");
-    write_artifact(output_directory, &file_name, &encode_png(&koi_frame)?)?;
+    write_artifact(output_directory, &file_name, &encode_png(&snake_frame)?)?;
     let svg_name = format!("{file_stem}.svg");
     write_artifact(
         output_directory,
         &svg_name,
-        encode_svg(&koi_frame).as_bytes(),
+        encode_svg(&snake_frame).as_bytes(),
     )?;
     index_markdown.push_str(&format!(
         "### {heading}\n\n![{file_stem}]({file_name})\n\n[SVG]({svg_name})\n\n"
     ));
-    Ok(koi_frame)
+    Ok(snake_frame)
 }
 
 fn write_overviews(
     output_directory: &Path,
     overview_name: &str,
-    rendered_frames: &[KoiFrame],
+    rendered_frames: &[SnakeFrame],
 ) -> Result<(), Box<dyn Error>> {
     for (background_name, background_color) in
         [("light", [255, 255, 255, 255]), ("dark", [13, 17, 23, 255])]
@@ -351,21 +351,21 @@ fn capitalize(sample_name: &str) -> String {
 
 fn build_index_header(identity_seed: u64) -> String {
     let mut index_markdown = format!(
-        "# Koi Library\n\n\
+        "# Snake Library\n\n\
         These samples share the same anatomy, pose, and Classic lighting. Language mixes\n\
-        appear on the default white body, followed by each body with one language per\n\
+        appear on the default normal morph, followed by each body with one language per\n\
         pigment, then streak markings. The samples use a fixed synthetic account seed,\n\
         explicit language shares with their GitHub colors, explicit growth totals, and\n\
-        explicit streaks. Growth samples show normal colors and no streak fins.\n\n\
+        explicit streaks. Growth samples show normal colors and no streak stripe.\n\n\
         Regenerate with the command in the\n\
-        [repository README](../README.md#koi-library).\n\n\
-        In the mix and body overviews, columns follow the contribution totals below,\n\
-        from left to right, and rows follow the mix or body order. These are samples of\n\
+        [repository README](../README.md#snake-library).\n\n\
+        In the mix and morph overviews, columns follow the contribution totals below,\n\
+        from left to right, and rows follow the mix or morph order. These are samples of\n\
         continuous growth. The markings overview follows the streak marking sections in\n\
-        rows of six: current streaks, longest streaks, then bodies without and with\n\
+        rows of six: current streaks, longest streaks, then morphs without and with\n\
         marks.\n\n\
         Mixes: [light overview](overview-light.png) · [dark overview](overview-dark.png)\n\n\
-        Bodies: [light overview](bodies-light.png) · [dark overview](bodies-dark.png)\n\n\
+        Morphs: [light overview](morphs-light.png) · [dark overview](morphs-dark.png)\n\n\
         Streak markings: [light overview](markings-light.png) ·\n\
         [dark overview](markings-dark.png)\n\n\
         Native canvas: {FRAME_WIDTH_PIXELS} × {FRAME_HEIGHT_PIXELS}.\n\n\
@@ -380,7 +380,7 @@ fn build_index_header(identity_seed: u64) -> String {
 }
 
 fn encode_overview(
-    rendered_frames: &[KoiFrame],
+    rendered_frames: &[SnakeFrame],
     background_color: [u8; 4],
 ) -> Result<Vec<u8>, png::EncodingError> {
     let overview_scale = STATIC_EXPORT_SCALE as usize;

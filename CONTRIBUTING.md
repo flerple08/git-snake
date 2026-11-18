@@ -9,13 +9,13 @@ change, and what a pull request looks like.
   [Cargo.toml](Cargo.toml). Install it with [rustup](https://rustup.rs).
 - Node.js, which runs Prettier for documentation and configuration files.
 - The [GitHub CLI](https://cli.github.com), authenticated, to run
-  `git-koi collect` against a real account.
+  `git-snake collect` against a real account.
 
 ## Build
 
 ```sh
 cargo build --release --locked
-./target/release/git-koi --help
+./target/release/git-snake --help
 ```
 
 `--locked` keeps `Cargo.lock` as committed.
@@ -48,19 +48,19 @@ npx prettier@3.9.10 --write .
 
 ## Reviewing Rendering Changes
 
-The koi library shows every body across growth samples, language mixes, and
+The snake library shows every morph across growth samples, language mixes, and
 streak marks, as transparent PNG and SVG pairs plus light and dark comparison
 sheets. Generate it from the repository root, then open `library/README.md`; Git
 ignores the generated files, and CI attaches a fresh library to every pull
-request as the `koi-library` artifact.
+request as the `snake-library` artifact.
 
 ```sh
 cargo run --locked --example generate-library -- library
 ```
 
-When a change alters how the koi looks, copy `library/bodies-light.png` and
-`library/bodies-dark.png` into `docs/` so the README's sheet matches the code.
-The koi library workflow fails until they match.
+When a change alters how the snake looks, copy `library/morphs-light.png` and
+`library/morphs-dark.png` into `docs/` so the README's sheet matches the code.
+The snake library workflow fails until they match.
 
 ## Releasing
 

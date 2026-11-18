@@ -1,19 +1,19 @@
 //! The day's movement, chosen from recent activity by one ordered set of rules.
 
-use crate::koi::{KoiDevelopment, RecentActivity};
+use crate::snake::{SnakeDevelopment, RecentActivity};
 
 /// One movement per run.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum Behavior {
-    /// Sits low in the water, blue-tinted, barely moving.
+    /// Wound into the tightest ball, barely moving.
     DeepRest,
-    /// Hovers in place a little deeper, with a slow beat and glide.
+    /// Lies in a loose coil, breathing slowly.
     Rest,
-    /// Hovers at the surface and gulps.
-    SurfaceFeeding,
-    /// Two fast laps of strong bursts and glides.
+    /// Stretches out in place, tongue flicking fast.
+    Alert,
+    /// Two fast laps of strong lunges and glides.
     Dart,
-    /// One slow lap; the everyday swim.
+    /// One slow lap; the everyday slither.
     Cruise,
 }
 
@@ -30,14 +30,14 @@ const DART_WEEK_SHARE_DENOMINATOR: usize = 10;
 const DAYS_PER_WEEK: usize = 7;
 
 /// Choose the movement for the day after the observation date. A nightly run judges
-/// the day that just ended, and the koi shows the result all of the next day. The
+/// the day that just ended, and the snake shows the result all of the next day. The
 /// first matching rule wins:
 ///
 /// | Behavior | When the observation date |
 /// | --- | --- |
 /// | Deep rest | ends DEEP_REST_QUIET_DAYS or more quiet days |
 /// | Rest | ends REST_QUIET_DAYS or more quiet days |
-/// | Surface feeding | is the first day with contributions in its Monday-Sunday week |
+/// | Alert | is the first day with contributions in its Monday-Sunday week |
 /// | Dart | falls within seven days of the total crossing a milestone |
 /// | Dart | is a Sunday that finishes a busy week |
 /// | Cruise | is anything else |
@@ -45,17 +45,17 @@ const DAYS_PER_WEEK: usize = 7;
 /// A finished week is busy when at most one in ten of the latest
 /// DART_COMPARED_WEEKS complete weeks before it match or beat its total, and at
 /// least DART_MIN_COMPLETE_WEEKS weeks are compared. So a steady account cruises,
-/// and the koi darts at most one day a week beyond milestones. This reads no clock
+/// and the snake darts at most one day a week beyond milestones. This reads no clock
 /// and changes no growth, colors, or marks.
-pub fn select_behavior(koi_development: &KoiDevelopment) -> Behavior {
-    let recent_activity = &koi_development.recent_activity;
+pub fn select_behavior(snake_development: &SnakeDevelopment) -> Behavior {
+    let recent_activity = &snake_development.recent_activity;
     if recent_activity.quiet_day_count >= DEEP_REST_QUIET_DAYS {
         Behavior::DeepRest
     } else if recent_activity.quiet_day_count >= REST_QUIET_DAYS {
         Behavior::Rest
     } else if is_first_contribution_of_week(recent_activity) {
-        Behavior::SurfaceFeeding
-    } else if has_crossed_milestone(koi_development.total_contributions, recent_activity)
+        Behavior::Alert
+    } else if has_crossed_milestone(snake_development.total_contributions, recent_activity)
         || is_finished_busy_week(recent_activity)
     {
         Behavior::Dart

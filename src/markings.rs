@@ -1,8 +1,8 @@
-//! How strongly the current and longest streaks show on the koi.
+//! How strongly the current and longest streaks show on the snake.
 
-use crate::koi::{KoiDevelopment, RecentStreak};
+use crate::snake::{SnakeDevelopment, RecentStreak};
 
-const STREAK_FIN_FULL_WEEKS: f64 = 13.0;
+const STREAK_STRIPE_FULL_WEEKS: f64 = 13.0;
 const FADE_RATE_PER_WEEK: f64 = 0.5;
 const FADE_WEEKS: f64 = 6.5;
 /// Shapes the longest-streak log curve: smaller values rise faster at first.
@@ -15,8 +15,8 @@ const FULL_GLIMMER_WEEKS: f64 = 208.0;
 /// Streak mark strengths for the renderer.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct StreakMarks {
-    /// Share of fin pixels in the body's streak color, from zero through one.
-    pub streak_fin_strength: f64,
+    /// Share of dorsal stripe pixels in the morph's streak color, from zero through one.
+    pub streak_stripe_strength: f64,
     /// Language color vibrancy: 0 dull, 1 normal, 2 extra bright and vivid.
     pub color_vibrancy: f64,
     /// Gin-rin glimmer on the color patches, from zero through one.
@@ -26,27 +26,27 @@ pub struct StreakMarks {
 /// Derive the streak marks from a development, measuring time against its
 /// observation date.
 ///
-/// Streak fins build linearly to full after STREAK_FIN_FULL_WEEKS of the recent
+/// Streak stripes build linearly to full after STREAK_STRIPE_FULL_WEEKS of the recent
 /// streak. Once it ends, they fade from the strength they reached on a negative
 /// exponential that reaches zero FADE_WEEKS after the recorded end date. The
 /// longest streak sets the other marks on one log curve: colors go from dull to
 /// normal by NORMAL_COLOR_WEEKS and to vivid by VIVID_COLOR_WEEKS, then glimmer
 /// builds until FULL_GLIMMER_WEEKS. The longest streak never shrinks, so neither do
 /// these marks. This reads no clock.
-pub fn calculate_streak_marks(koi_development: &KoiDevelopment) -> StreakMarks {
-    let streak_fin_strength = match &koi_development.streaks.recent {
+pub fn calculate_streak_marks(snake_development: &SnakeDevelopment) -> StreakMarks {
+    let streak_stripe_strength = match &snake_development.streaks.recent {
         None => 0.0,
-        Some(RecentStreak::Current(streak_weeks)) => calculate_fin_build(streak_weeks.len()),
+        Some(RecentStreak::Current(streak_weeks)) => calculate_stripe_build(streak_weeks.len()),
         Some(RecentStreak::Ended {
             weeks: streak_weeks,
             ended_on,
         }) => {
             let weeks_since_end =
-                (koi_development.observed_on - *ended_on).num_days().max(0) as f64 / 7.0;
-            calculate_fin_build(streak_weeks.len()) * calculate_fade(weeks_since_end)
+                (snake_development.observed_on - *ended_on).num_days().max(0) as f64 / 7.0;
+            calculate_stripe_build(streak_weeks.len()) * calculate_fade(weeks_since_end)
         }
     };
-    let record_strength = calculate_record_strength(koi_development.streaks.longest.len() as f64);
+    let record_strength = calculate_record_strength(snake_development.streaks.longest.len() as f64);
     let normal_strength = calculate_record_strength(NORMAL_COLOR_WEEKS);
     let vivid_strength = calculate_record_strength(VIVID_COLOR_WEEKS);
     let color_vibrancy = if record_strength < normal_strength {
@@ -55,15 +55,15 @@ pub fn calculate_streak_marks(koi_development: &KoiDevelopment) -> StreakMarks {
         1.0 + ((record_strength - normal_strength) / (vivid_strength - normal_strength)).min(1.0)
     };
     StreakMarks {
-        streak_fin_strength,
+        streak_stripe_strength,
         color_vibrancy,
         glimmer_strength: ((record_strength - vivid_strength) / (1.0 - vivid_strength))
             .clamp(0.0, 1.0),
     }
 }
 
-fn calculate_fin_build(streak_week_count: usize) -> f64 {
-    (streak_week_count as f64 / STREAK_FIN_FULL_WEEKS).min(1.0)
+fn calculate_stripe_build(streak_week_count: usize) -> f64 {
+    (streak_week_count as f64 / STREAK_STRIPE_FULL_WEEKS).min(1.0)
 }
 
 /// Remaining share after a streak ends: a negative exponential shifted and scaled

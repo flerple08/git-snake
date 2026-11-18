@@ -1,26 +1,26 @@
 use chrono::{Datelike, Days, NaiveDate};
-use git_koi::history::{AccountSnapshot, ContributionDay, ContributionHistory, ContributionWeek};
-use git_koi::koi::{KoiDevelopment, RecentStreak, derive_koi_development};
-use git_koi::markings::calculate_streak_marks;
+use git_snake::history::{AccountSnapshot, ContributionDay, ContributionHistory, ContributionWeek};
+use git_snake::snake::{SnakeDevelopment, RecentStreak, derive_snake_development};
+use git_snake::markings::calculate_streak_marks;
 
 #[test]
-fn streak_fins_build_linearly_to_full_at_thirteen_weeks() {
+fn streak_stripe_build_linearly_to_full_at_thirteen_weeks() {
     for (streak_week_count, expected_strength) in
         [(1, 1.0 / 13.0), (6, 6.0 / 13.0), (13, 1.0), (20, 1.0)]
     {
-        let koi_development = develop_with_streaks(
+        let snake_development = develop_with_streaks(
             streak_week_count,
             Some(RecentStreak::Current(build_weeks(streak_week_count))),
         );
         assert_close(
-            calculate_streak_marks(&koi_development).streak_fin_strength,
+            calculate_streak_marks(&snake_development).streak_stripe_strength,
             expected_strength,
         );
     }
 }
 
 #[test]
-fn streak_fins_fade_to_nothing_six_and_a_half_weeks_after_a_streak_ends() {
+fn streak_stripe_fade_to_nothing_six_and_a_half_weeks_after_a_streak_ends() {
     for (days_since_end, expected_strength) in [
         (0, 1.0),
         (7, 0.59066),
@@ -30,11 +30,11 @@ fn streak_fins_fade_to_nothing_six_and_a_half_weeks_after_a_streak_ends() {
         (46, 0.0),
         (365, 0.0),
     ] {
-        let koi_development = develop_after_streak_end(13, days_since_end);
-        let streak_fin_strength = calculate_streak_marks(&koi_development).streak_fin_strength;
+        let snake_development = develop_after_streak_end(13, days_since_end);
+        let streak_stripe_strength = calculate_streak_marks(&snake_development).streak_stripe_strength;
         assert!(
-            (streak_fin_strength - expected_strength).abs() < 0.00001,
-            "{days_since_end} days after: {streak_fin_strength}"
+            (streak_stripe_strength - expected_strength).abs() < 0.00001,
+            "{days_since_end} days after: {streak_stripe_strength}"
         );
     }
 }
@@ -43,8 +43,8 @@ fn streak_fins_fade_to_nothing_six_and_a_half_weeks_after_a_streak_ends() {
 fn a_short_streak_fades_from_the_strength_it_reached() {
     let ended_strength = calculate_streak_marks(&develop_after_streak_end(4, 0));
     let faded_strength = calculate_streak_marks(&develop_after_streak_end(4, 7));
-    assert_close(ended_strength.streak_fin_strength, 4.0 / 13.0);
-    assert!((faded_strength.streak_fin_strength - 4.0 / 13.0 * 0.59066).abs() < 0.00001);
+    assert_close(ended_strength.streak_stripe_strength, 4.0 / 13.0);
+    assert!((faded_strength.streak_stripe_strength - 4.0 / 13.0 * 0.59066).abs() < 0.00001);
 }
 
 #[test]
@@ -70,47 +70,47 @@ fn the_longest_streak_brings_colors_from_dull_to_vivid_then_glimmer() {
 }
 
 #[test]
-fn quiet_weeks_fade_the_fins_without_lowering_the_longest_streak_marks() {
+fn quiet_weeks_fade_the_stripe_without_lowering_the_longest_streak_marks() {
     let first_monday: NaiveDate = "2025-09-01".parse().unwrap();
     let mut daily_counts = vec![1; 13 * 7];
     let active_marks =
         calculate_streak_marks(&develop_from_daily_counts(first_monday, &daily_counts));
-    assert_close(active_marks.streak_fin_strength, 1.0);
+    assert_close(active_marks.streak_stripe_strength, 1.0);
     let mut previous_marks = active_marks;
     for _ in 0..10 {
         daily_counts.extend([0; 7]);
         let quiet_marks =
             calculate_streak_marks(&develop_from_daily_counts(first_monday, &daily_counts));
-        assert!(quiet_marks.streak_fin_strength <= previous_marks.streak_fin_strength);
+        assert!(quiet_marks.streak_stripe_strength <= previous_marks.streak_stripe_strength);
         assert_eq!(quiet_marks.color_vibrancy, active_marks.color_vibrancy);
         assert_eq!(quiet_marks.glimmer_strength, active_marks.glimmer_strength);
         previous_marks = quiet_marks;
     }
-    assert_eq!(previous_marks.streak_fin_strength, 0.0);
+    assert_eq!(previous_marks.streak_stripe_strength, 0.0);
 }
 
 fn develop_with_streaks(
     longest_week_count: usize,
     recent_streak: Option<RecentStreak>,
-) -> KoiDevelopment {
-    let mut koi_development = read_fixture_development();
-    koi_development.streaks.longest = build_weeks(longest_week_count);
-    koi_development.streaks.recent = recent_streak;
-    koi_development
+) -> SnakeDevelopment {
+    let mut snake_development = read_fixture_development();
+    snake_development.streaks.longest = build_weeks(longest_week_count);
+    snake_development.streaks.recent = recent_streak;
+    snake_development
 }
 
-fn develop_after_streak_end(streak_week_count: usize, days_since_end: u64) -> KoiDevelopment {
-    let mut koi_development = read_fixture_development();
-    let ended_on = koi_development.observed_on - Days::new(days_since_end);
-    koi_development.streaks.longest = build_weeks(streak_week_count);
-    koi_development.streaks.recent = Some(RecentStreak::Ended {
+fn develop_after_streak_end(streak_week_count: usize, days_since_end: u64) -> SnakeDevelopment {
+    let mut snake_development = read_fixture_development();
+    let ended_on = snake_development.observed_on - Days::new(days_since_end);
+    snake_development.streaks.longest = build_weeks(streak_week_count);
+    snake_development.streaks.recent = Some(RecentStreak::Ended {
         weeks: build_weeks(streak_week_count),
         ended_on,
     });
-    koi_development
+    snake_development
 }
 
-fn develop_from_daily_counts(first_monday: NaiveDate, daily_counts: &[u32]) -> KoiDevelopment {
+fn develop_from_daily_counts(first_monday: NaiveDate, daily_counts: &[u32]) -> SnakeDevelopment {
     let mut account_snapshot: AccountSnapshot =
         serde_json::from_str(include_str!("fixtures/account-with-history.json")).unwrap();
     let contribution_days: Vec<_> = daily_counts
@@ -125,13 +125,13 @@ fn develop_from_daily_counts(first_monday: NaiveDate, daily_counts: &[u32]) -> K
         observed_on: contribution_days.last().unwrap().date,
         days: contribution_days,
     });
-    derive_koi_development(&account_snapshot).unwrap()
+    derive_snake_development(&account_snapshot).unwrap()
 }
 
-fn read_fixture_development() -> KoiDevelopment {
+fn read_fixture_development() -> SnakeDevelopment {
     let account_snapshot =
         serde_json::from_str(include_str!("fixtures/account-with-history.json")).unwrap();
-    derive_koi_development(&account_snapshot).unwrap()
+    derive_snake_development(&account_snapshot).unwrap()
 }
 
 /// Fully active weeks; marks depend only on how many there are.

@@ -1,16 +1,16 @@
 use std::sync::OnceLock;
 
-use git_koi::behavior::Behavior;
-use git_koi::coat::KoiBody;
-use git_koi::history::AccountSnapshot;
-use git_koi::koi::derive_koi_development;
-use git_koi::output::{GifEncodingError, STATIC_HEIGHT_PIXELS, STATIC_WIDTH_PIXELS, encode_gif};
-use git_koi::render::{FRAME_WIDTH_PIXELS, KoiFrame, render_swim_frame};
+use git_snake::behavior::Behavior;
+use git_snake::coat::SnakeMorph;
+use git_snake::history::AccountSnapshot;
+use git_snake::snake::derive_snake_development;
+use git_snake::output::{GifEncodingError, STATIC_HEIGHT_PIXELS, STATIC_WIDTH_PIXELS, encode_gif};
+use git_snake::render::{FRAME_WIDTH_PIXELS, SnakeFrame, render_slither_frame};
 
 #[test]
 fn the_gif_rebuilds_every_frame_exactly_at_twice_the_size() {
-    let (koi_frames, gif_bytes) = encoded_feeding_excerpt();
-    assert_eq!(encode_gif(koi_frames).unwrap(), *gif_bytes);
+    let (snake_frames, gif_bytes) = encoded_alert_excerpt();
+    assert_eq!(encode_gif(snake_frames).unwrap(), *gif_bytes);
     let mut gif_options = gif::DecodeOptions::new();
     gif_options.set_color_output(gif::ColorOutput::Indexed);
     let mut gif_decoder = gif_options.read_info(gif_bytes.as_slice()).unwrap();
@@ -24,7 +24,7 @@ fn the_gif_rebuilds_every_frame_exactly_at_twice_the_size() {
     // Composite the way a browser does: draw each frame's box over the canvas, show
     // the result, then apply the frame's disposal before the next one.
     let mut canvas = vec![[0; 4]; (STATIC_WIDTH_PIXELS * STATIC_HEIGHT_PIXELS) as usize];
-    for koi_frame in koi_frames {
+    for snake_frame in snake_frames {
         let gif_frame = gif_decoder.read_next_frame().unwrap().unwrap();
         let palette = gif_frame.palette.as_ref().unwrap();
         let box_pixels = |box_index: usize| {
@@ -41,7 +41,7 @@ fn the_gif_rebuilds_every_frame_exactly_at_twice_the_size() {
                 canvas[box_pixels(box_index)] = [red, green, blue, 255];
             }
         }
-        assert_eq!(canvas, scale_to_export(koi_frame));
+        assert_eq!(canvas, scale_to_export(snake_frame));
         if gif_frame.dispose == gif::DisposalMethod::Background {
             for box_index in 0..gif_frame.buffer.len() {
                 canvas[box_pixels(box_index)] = [0; 4];
@@ -52,9 +52,9 @@ fn the_gif_rebuilds_every_frame_exactly_at_twice_the_size() {
 }
 
 #[test]
-fn frames_store_only_the_box_around_the_koi() {
+fn frames_store_only_the_box_around_the_snake() {
     let mut gif_decoder = gif::DecodeOptions::new()
-        .read_info(encoded_feeding_excerpt().1.as_slice())
+        .read_info(encoded_alert_excerpt().1.as_slice())
         .unwrap();
     while let Some(gif_frame) = gif_decoder.read_next_frame().unwrap() {
         assert!(u32::from(gif_frame.width) < STATIC_WIDTH_PIXELS);
@@ -65,7 +65,7 @@ fn frames_store_only_the_box_around_the_koi() {
 #[test]
 fn the_gif_repeats_forever_at_fifteen_frames_per_second() {
     let mut gif_decoder = gif::DecodeOptions::new()
-        .read_info(encoded_feeding_excerpt().1.as_slice())
+        .read_info(encoded_alert_excerpt().1.as_slice())
         .unwrap();
     let mut frame_delays = Vec::new();
     while let Some(gif_frame) = gif_decoder.read_next_frame().unwrap() {
@@ -82,30 +82,30 @@ fn an_empty_loop_is_an_error() {
 
 /// The first six frames of surface feeding, which draws the mouth, ripples, and pellets,
 /// and their GIF, rendered once for every test.
-fn encoded_feeding_excerpt() -> &'static (Vec<KoiFrame>, Vec<u8>) {
-    static FEEDING_EXCERPT: OnceLock<(Vec<KoiFrame>, Vec<u8>)> = OnceLock::new();
+fn encoded_alert_excerpt() -> &'static (Vec<SnakeFrame>, Vec<u8>) {
+    static FEEDING_EXCERPT: OnceLock<(Vec<SnakeFrame>, Vec<u8>)> = OnceLock::new();
     FEEDING_EXCERPT.get_or_init(|| {
         let account_snapshot: AccountSnapshot =
             serde_json::from_str(include_str!("fixtures/account-with-history.json")).unwrap();
-        let koi_development = derive_koi_development(&account_snapshot).unwrap();
-        let koi_frames: Vec<KoiFrame> = (0..6)
+        let snake_development = derive_snake_development(&account_snapshot).unwrap();
+        let snake_frames: Vec<SnakeFrame> = (0..6)
             .map(|frame_index| {
-                render_swim_frame(
-                    &koi_development,
-                    KoiBody::default(),
-                    Behavior::SurfaceFeeding,
+                render_slither_frame(
+                    &snake_development,
+                    SnakeMorph::default(),
+                    Behavior::Alert,
                     frame_index,
                 )
             })
             .collect();
-        let gif_bytes = encode_gif(&koi_frames).unwrap();
-        (koi_frames, gif_bytes)
+        let gif_bytes = encode_gif(&snake_frames).unwrap();
+        (snake_frames, gif_bytes)
     })
 }
 
 /// Repeat each native pixel twice in both dimensions, as the export does.
-fn scale_to_export(koi_frame: &KoiFrame) -> Vec<[u8; 4]> {
-    let native_pixels = koi_frame.as_rgba_bytes().as_chunks::<4>().0;
+fn scale_to_export(snake_frame: &SnakeFrame) -> Vec<[u8; 4]> {
+    let native_pixels = snake_frame.as_rgba_bytes().as_chunks::<4>().0;
     (0..STATIC_WIDTH_PIXELS * STATIC_HEIGHT_PIXELS)
         .map(|export_index| {
             let native_x = export_index % STATIC_WIDTH_PIXELS / 2;

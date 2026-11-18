@@ -6,63 +6,63 @@ use std::time::{SystemTime, UNIX_EPOCH};
 use std::{env, fs};
 
 use chrono::{DateTime, NaiveDate};
-use git_koi::behavior::{Behavior, select_behavior};
-use git_koi::coat::KoiBody;
-use git_koi::collect::{GhCli, collect_account_snapshot};
-use git_koi::history::AccountSnapshot;
-use git_koi::koi::derive_koi_development;
-use git_koi::motion::frame_count;
-use git_koi::output::{encode_gif, encode_png, encode_preview_html};
-use git_koi::render::{KoiFrame, render_koi, render_swim_frame};
+use git_snake::behavior::{Behavior, select_behavior};
+use git_snake::coat::SnakeMorph;
+use git_snake::collect::{GhCli, collect_account_snapshot};
+use git_snake::history::AccountSnapshot;
+use git_snake::snake::derive_snake_development;
+use git_snake::motion::frame_count;
+use git_snake::output::{encode_gif, encode_png, encode_preview_html};
+use git_snake::render::{SnakeFrame, render_snake, render_slither_frame};
 
-/// The command's usage, listing the bodies from [`BODY_NAMES`] so the help names every
-/// body the parser accepts.
+/// The command's usage, listing the morphs from [`MORPH_NAMES`] so the help names every
+/// morph the parser accepts.
 fn build_usage_text() -> String {
-    let body_names = list_body_names();
+    let morph_names = list_morph_names();
     format!(
-        "Usage: git-koi collect LOGIN [--output FILE]
-       git-koi render SNAPSHOT --output-dir DIR [--body BODY]
-       git-koi --help | --version
+        "Usage: git-snake collect LOGIN [--output FILE]
+       git-snake render SNAPSHOT --output-dir DIR [--morph MORPH]
+       git-snake --help | --version
 Collect LOGIN's public GitHub snapshot as JSON through `gh api`: public owned and
 contributed repositories, and daily contributions from the account's creation
 through yesterday (UTC), the last complete day.
 Writes to standard output, or replaces FILE only after collection succeeds.
 Requires an authenticated GitHub CLI; in GitHub Actions, set GH_TOKEN to github.token.
-Render a collected SNAPSHOT into DIR: koi.gif swims the behavior chosen for its
-observation date, koi.png is the still koi, and preview.html shows both on light and
-dark backgrounds. BODY is {body_names}.
+Render a collected SNAPSHOT into DIR: snake.gif slithers the behavior chosen for its
+observation date, snake.png is the coiled still snake, and preview.html shows both on light and
+dark backgrounds. MORPH is {morph_names}.
 The files are replaced only after all of them render.
 Render prints nothing on success; errors go to stderr and exit 1; invalid usage exits 2.
-Examples: git-koi collect octocat --output snapshot.json
-          git-koi render snapshot.json --output-dir koi --body asagi"
+Examples: git-snake collect octocat --output snapshot.json
+          git-snake render snapshot.json --output-dir snake --morph banana"
     )
 }
 
-/// Each body's name on the command line.
-const BODY_NAMES: [(&str, KoiBody); 6] = [
-    ("white", KoiBody::White),
-    ("black", KoiBody::Black),
-    ("asagi", KoiBody::Asagi),
-    ("tea", KoiBody::Tea),
-    ("gold", KoiBody::Gold),
-    ("platinum", KoiBody::Platinum),
+/// Each morph's name on the command line.
+const MORPH_NAMES: [(&str, SnakeMorph); 6] = [
+    ("normal", SnakeMorph::Normal),
+    ("pastel", SnakeMorph::Pastel),
+    ("banana", SnakeMorph::Banana),
+    ("albino", SnakeMorph::Albino),
+    ("axanthic", SnakeMorph::Axanthic),
+    ("cinnamon", SnakeMorph::Cinnamon),
 ];
 
-/// The body names in table order, the default marked and the last joined with "or".
-fn list_body_names() -> String {
-    let listed_names: Vec<String> = BODY_NAMES
+/// The morph names in table order, the default marked and the last joined with "or".
+fn list_morph_names() -> String {
+    let listed_names: Vec<String> = MORPH_NAMES
         .iter()
-        .map(|(body_name, koi_body)| {
-            if *koi_body == KoiBody::default() {
-                format!("{body_name} (the default)")
+        .map(|(morph_name, snake_morph)| {
+            if *snake_morph == SnakeMorph::default() {
+                format!("{morph_name} (the default)")
             } else {
-                (*body_name).to_owned()
+                (*morph_name).to_owned()
             }
         })
         .collect();
     let (last_name, leading_names) = listed_names
         .split_last()
-        .expect("the table names at least one body");
+        .expect("the table names at least one morph");
     format!("{}, or {last_name}", leading_names.join(", "))
 }
 
@@ -78,7 +78,7 @@ fn main() -> ExitCode {
             ExitCode::SUCCESS
         }
         [Some("--version")] => {
-            println!("git-koi {}", env!("CARGO_PKG_VERSION"));
+            println!("git-snake {}", env!("CARGO_PKG_VERSION"));
             ExitCode::SUCCESS
         }
         [Some("collect"), Some(login)] if !login.starts_with('-') => run_collect(login, None),
@@ -91,7 +91,7 @@ fn main() -> ExitCode {
             run_render(
                 Path::new(snapshot_path),
                 Path::new(&program_arguments[3]),
-                KoiBody::default(),
+                SnakeMorph::default(),
             )
         }
         [
@@ -99,12 +99,12 @@ fn main() -> ExitCode {
             Some(snapshot_path),
             Some("--output-dir"),
             _,
-            Some("--body"),
-            Some(body_name),
-        ] if !snapshot_path.starts_with('-') && parse_body(body_name).is_some() => run_render(
+            Some("--morph"),
+            Some(morph_name),
+        ] if !snapshot_path.starts_with('-') && parse_morph(morph_name).is_some() => run_render(
             Path::new(snapshot_path),
             Path::new(&program_arguments[3]),
-            parse_body(body_name).expect("the guard parsed the body"),
+            parse_morph(morph_name).expect("the guard parsed the morph"),
         ),
         _ => {
             eprintln!("{}", build_usage_text());
@@ -124,14 +124,14 @@ fn run_collect(login: &str, output_path: Option<&Path>) -> ExitCode {
     match collection_result {
         Ok(()) => ExitCode::SUCCESS,
         Err(error_message) => {
-            eprintln!("git-koi: {error_message}");
+            eprintln!("git-snake: {error_message}");
             ExitCode::FAILURE
         }
     }
 }
 
-fn run_render(snapshot_path: &Path, output_directory: &Path, koi_body: KoiBody) -> ExitCode {
-    let render_result = render_day(snapshot_path, koi_body).and_then(|output_files| {
+fn run_render(snapshot_path: &Path, output_directory: &Path, snake_morph: SnakeMorph) -> ExitCode {
+    let render_result = render_day(snapshot_path, snake_morph).and_then(|output_files| {
         fs::create_dir_all(output_directory)
             .map_err(|create_error| format!("{}: {create_error}", output_directory.display()))?;
         for (file_name, file_bytes) in output_files {
@@ -142,66 +142,66 @@ fn run_render(snapshot_path: &Path, output_directory: &Path, koi_body: KoiBody) 
     match render_result {
         Ok(()) => ExitCode::SUCCESS,
         Err(error_message) => {
-            eprintln!("git-koi: {error_message}");
+            eprintln!("git-snake: {error_message}");
             ExitCode::FAILURE
         }
     }
 }
 
 /// Render and encode the day's files in memory, by name, so none is written unless all
-/// succeed. The preview's caption names the behavior, observation date, and body.
+/// succeed. The preview's caption names the behavior, observation date, and morph.
 fn render_day(
     snapshot_path: &Path,
-    koi_body: KoiBody,
+    snake_morph: SnakeMorph,
 ) -> Result<[(&'static str, Vec<u8>); 3], String> {
     let snapshot_json = fs::read_to_string(snapshot_path)
         .map_err(|read_error| format!("{}: {read_error}", snapshot_path.display()))?;
     let account_snapshot: AccountSnapshot = serde_json::from_str(&snapshot_json)
         .map_err(|parse_error| format!("{}: {parse_error}", snapshot_path.display()))?;
-    let koi_development = derive_koi_development(&account_snapshot)
+    let snake_development = derive_snake_development(&account_snapshot)
         .map_err(|development_error| development_error.to_string())?;
-    let behavior = select_behavior(&koi_development);
-    let swim_frames: Vec<KoiFrame> = (0..frame_count(behavior))
-        .map(|frame_index| render_swim_frame(&koi_development, koi_body, behavior, frame_index))
+    let behavior = select_behavior(&snake_development);
+    let slither_frames: Vec<SnakeFrame> = (0..frame_count(behavior))
+        .map(|frame_index| render_slither_frame(&snake_development, snake_morph, behavior, frame_index))
         .collect();
     let gif_bytes =
-        encode_gif(&swim_frames).map_err(|encoding_error| encoding_error.to_string())?;
-    let png_bytes = encode_png(&render_koi(&koi_development, koi_body))
+        encode_gif(&slither_frames).map_err(|encoding_error| encoding_error.to_string())?;
+    let png_bytes = encode_png(&render_snake(&snake_development, snake_morph))
         .map_err(|encoding_error| encoding_error.to_string())?;
     let caption = format!(
-        "{} for {}, {} body",
+        "{} for {}, {} morph",
         describe_behavior(behavior),
-        koi_development.observed_on,
-        name_body(koi_body)
+        snake_development.observed_on,
+        name_morph(snake_morph)
     );
     let preview_html = encode_preview_html(&caption);
     Ok([
-        ("koi.gif", gif_bytes),
-        ("koi.png", png_bytes),
+        ("snake.gif", gif_bytes),
+        ("snake.png", png_bytes),
         ("preview.html", preview_html.into_bytes()),
     ])
 }
 
-fn parse_body(body_name: &str) -> Option<KoiBody> {
-    BODY_NAMES
+fn parse_morph(morph_name: &str) -> Option<SnakeMorph> {
+    MORPH_NAMES
         .iter()
-        .find(|(named_body_name, _)| *named_body_name == body_name)
-        .map(|(_, koi_body)| *koi_body)
+        .find(|(named_morph_name, _)| *named_morph_name == morph_name)
+        .map(|(_, snake_morph)| *snake_morph)
 }
 
-fn name_body(koi_body: KoiBody) -> &'static str {
-    BODY_NAMES
+fn name_morph(snake_morph: SnakeMorph) -> &'static str {
+    MORPH_NAMES
         .iter()
-        .find(|(_, named_body)| *named_body == koi_body)
-        .map(|(body_name, _)| *body_name)
-        .expect("every body has a name")
+        .find(|(_, named_morph)| *named_morph == snake_morph)
+        .map(|(morph_name, _)| *morph_name)
+        .expect("every morph has a name")
 }
 
 fn describe_behavior(behavior: Behavior) -> &'static str {
     match behavior {
         Behavior::DeepRest => "deep rest",
         Behavior::Rest => "rest",
-        Behavior::SurfaceFeeding => "surface feeding",
+        Behavior::Alert => "alert",
         Behavior::Dart => "dart",
         Behavior::Cruise => "cruise",
     }
@@ -250,23 +250,23 @@ mod tests {
     use super::*;
 
     #[test]
-    fn the_usage_lists_every_body_the_parser_accepts_and_marks_the_default() {
+    fn the_usage_lists_every_morph_the_parser_accepts_and_marks_the_default() {
         let usage_text = build_usage_text();
-        let body_sentence = usage_text
-            .split_once("BODY is ")
+        let morph_sentence = usage_text
+            .split_once("MORPH is ")
             .and_then(|(_, sentence_onward)| sentence_onward.split_once('.'))
-            .map(|(body_sentence, _)| body_sentence)
-            .expect("the usage has a sentence listing the bodies");
-        for (body_name, _) in BODY_NAMES {
+            .map(|(morph_sentence, _)| morph_sentence)
+            .expect("the usage has a sentence listing the morphs");
+        for (morph_name, _) in MORPH_NAMES {
             assert!(
-                body_sentence.contains(body_name),
-                "the usage leaves out {body_name}: {body_sentence}"
+                morph_sentence.contains(morph_name),
+                "the usage leaves out {morph_name}: {morph_sentence}"
             );
         }
-        let default_name = name_body(KoiBody::default());
+        let default_name = name_morph(SnakeMorph::default());
         assert!(
-            body_sentence.contains(&format!("{default_name} (the default)")),
-            "{body_sentence}"
+            morph_sentence.contains(&format!("{default_name} (the default)")),
+            "{morph_sentence}"
         );
     }
 }

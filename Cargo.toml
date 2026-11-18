@@ -1,14 +1,14 @@
 [package]
-name = "git-koi"
+name = "git-snake"
 version = "1.0.2"
 edition = "2024"
 rust-version = "1.88"
-description = "Draw a pixel-art koi from a GitHub account's public activity, as a looping GIF for a profile README."
-repository = "https://github.com/yalongwastaken/git-koi"
-documentation = "https://docs.rs/git-koi"
+description = "Draw a pixel-art snake from a GitHub account's public activity, as a looping GIF for a profile README."
+repository = "https://github.com/flerple08/git-snake"
+documentation = "https://docs.rs/git-snake"
 readme = "README.md"
 license = "MIT"
-keywords = ["github", "profile", "koi", "pixel-art", "gif"]
+keywords = ["github", "profile", "snake", "pixel-art", "gif"]
 categories = ["command-line-utilities", "visualization"]
 exclude = ["/.github", "/docs"]
 

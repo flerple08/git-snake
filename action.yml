@@ -1,23 +1,23 @@
-name: git-profile-koi
+name: git-profile-snake
 description:
-  Draw a GitHub account's koi from its public activity as a looping GIF, a still
+  Draw a GitHub account's snake from its public activity as a looping GIF, a still
   PNG, and a preview, for a profile README.
 branding:
-  icon: droplet
+  icon: activity
   color: blue
 
 inputs:
   login:
-    description: Account whose koi to draw.
+    description: Account whose snake to draw.
     default: ${{ github.repository_owner }}
-  body:
-    description: Body color, one of white, black, asagi, tea, gold, or platinum.
-    default: white
+  morph:
+    description: Ball python morph, one of normal, pastel, banana, albino, axanthic, or cinnamon.
+    default: normal
   output-dir:
     description:
-      Folder, relative to the workspace, that receives koi.gif, koi.png, and
+      Folder, relative to the workspace, that receives snake.gif, snake.png, and
       preview.html.
-    default: koi
+    default: snake
   token:
     description:
       Token for reading the account's public data. Keep the built-in token,
@@ -28,7 +28,7 @@ inputs:
 runs:
   using: composite
   steps:
-    - name: Download the git-koi release this Action belongs to
+    - name: Download the git-snake release this Action belongs to
       shell: bash
       env:
         GH_TOKEN: ${{ inputs.token }}
@@ -42,16 +42,16 @@ runs:
           macOS-ARM64) target=aarch64-apple-darwin ;;
           Windows-X64) target=x86_64-pc-windows-msvc ;;
           *)
-            echo "git-koi has no build for $RUNNER_OS $RUNNER_ARCH; use ubuntu-latest" >&2
+            echo "git-snake has no build for $RUNNER_OS $RUNNER_ARCH; use ubuntu-latest" >&2
             exit 1
             ;;
         esac
         if [ "$RUNNER_OS" = Windows ]; then
-          archive="git-koi-$version-$target.zip"
+          archive="git-snake-$version-$target.zip"
         else
-          archive="git-koi-$version-$target.tar.gz"
+          archive="git-snake-$version-$target.tar.gz"
         fi
-        install_dir="$RUNNER_TEMP/git-koi"
+        install_dir="$RUNNER_TEMP/git-snake"
         mkdir -p "$install_dir"
         if ! gh release download "v$version" --repo "$repository" --dir "$install_dir" \
             --pattern "$archive" --pattern "$archive.sha256"; then
@@ -68,19 +68,19 @@ runs:
           *.zip) unzip -q "$archive" ;;
           *) tar -xzf "$archive" ;;
         esac
-        echo "$install_dir/git-koi-$version-$target" >> "$GITHUB_PATH"
+        echo "$install_dir/git-snake-$version-$target" >> "$GITHUB_PATH"
     - name: Collect the account snapshot
       shell: bash
       env:
         GH_TOKEN: ${{ inputs.token }}
-        KOI_LOGIN: ${{ inputs.login }}
+        SNAKE_LOGIN: ${{ inputs.login }}
       run:
-        git-koi collect "$KOI_LOGIN" --output "$RUNNER_TEMP/koi-snapshot.json"
-    - name: Render the koi
+        git-snake collect "$SNAKE_LOGIN" --output "$RUNNER_TEMP/snake-snapshot.json"
+    - name: Render the snake
       shell: bash
       env:
-        KOI_BODY: ${{ inputs.body }}
-        KOI_OUTPUT_DIR: ${{ inputs.output-dir }}
+        SNAKE_MORPH: ${{ inputs.morph }}
+        SNAKE_OUTPUT_DIR: ${{ inputs.output-dir }}
       run:
-        git-koi render "$RUNNER_TEMP/koi-snapshot.json" --output-dir
-        "$KOI_OUTPUT_DIR" --body "$KOI_BODY"
+        git-snake render "$RUNNER_TEMP/snake-snapshot.json" --output-dir
+        "$SNAKE_OUTPUT_DIR" --morph "$SNAKE_MORPH"
